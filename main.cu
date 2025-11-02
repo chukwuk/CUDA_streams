@@ -179,9 +179,9 @@ main( int argc, char* argv[ ] )
   printf(" summation values: %i \n", sumData[0]); 
   
 
-  for (int i = 0; i < sumNumData; i++) {
+  for (unsigned long int i = 0; i < sumNumData; i++) {
       if (sumData[i] - 6 != 0) {
-         printf(" The value that is wrong is: %i, %i\n",i, sumData[i]);
+         printf(" The value that is wrong is: %lu, %i\n",i, sumData[i]);
 	 break; 
       }  
   }
@@ -276,9 +276,9 @@ main( int argc, char* argv[ ] )
   printf("Time for asynchronous V1 transfer and execute (ms): %f milliseconds\n", GpuTime);
   printf(" summation values: %i \n", sumStrData[0]); 
  
-  for (int i = 0; i < sumNumData; i++) {
+  for (unsigned long int i = 0; i < sumNumData; i++) {
       if (sumStrData[i] - 6 != 0) {
-         printf(" The value that is wrong is: %i, %i\n",i, sumStrData[i]);
+         printf(" The value that is wrong is: %lu, %i\n",i, sumStrData[i]);
 	 break; 
       }  
   }
@@ -358,9 +358,9 @@ main( int argc, char* argv[ ] )
   printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime);
   printf(" summation values: %i \n", sumStrOneData[0]); 
  
-  for (int i = 0; i < sumNumData; i++) {
+  for (unsigned long int i = 0; i < sumNumData; i++) {
       if (sumStrOneData[i] - 6 != 0) {
-         printf(" The value that is wrong is: %i, %i\n",i, sumStrOneData[i]);
+         printf(" The value that is wrong is: %lu, %i\n",i, sumStrOneData[i]);
 	 break; 
       }  
   }
@@ -371,38 +371,6 @@ main( int argc, char* argv[ ] )
    
   cudaFreeHost( sumStrOneData );
   cudaFreeHost( reduceStrOneData );
-
-
-
   
-  /*
-  double sum = 0.00;
-   
-  // Record the start event
-  cudaEventRecord(start, 0); 
-     
-  for (int i = 0; i < numData; i++) {
-       sum+=1.0; 
-  }
-
-
-  //printf("  CPU summation: %f \n", sum);
-  
-  // Record the stop event
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop); 
-  
-  // Calculate elapsed time
-  cudaEventElapsedTime(&GpuTime, start, stop); 
-
-  printf("  CPU time: %f milliseconds\n", GpuTime);
-  
-    
-  // free device memory 
-  cudaFree( sumDataDev );
-  cudaFree( reduceDataDev );
-  cudaFreeHost(sumData);
-  cudaFreeHost(reduceData);
-  */
   return 0;
 };	

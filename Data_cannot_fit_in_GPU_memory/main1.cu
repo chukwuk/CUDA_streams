@@ -12,6 +12,8 @@
 
 #include "reductionsum.h"
 
+#define cudaDeviceScheduleBlockingSync 0x04
+
 
 #ifndef NUMDATA
 
@@ -99,6 +101,14 @@ main( int argc, char* argv[ ] )
   unsigned long int sumGPUDataSize = (sizeof(int) * sumGPUNumData) ;
   fprintf (stderr, "Amount of sumData data transfered to the device is %lu GB\n", sumGPUDataSize/1000000000);
 
+
+  
+  // pinned data
+  
+
+  
+  //memset(reduceData, 1, reduceDataSize); 
+
   
   // Create CUDA events
   cudaEvent_t start, stop;
@@ -153,81 +163,27 @@ main( int argc, char* argv[ ] )
   }
    
   
-  int* reduceStrData = new int [numData];
-  int* sumStrData  = new int [sumNumData]; 
-
 
   
+  // second asynchronous  transfer 
+  /*
+  int* reduceStrOneData;
+  int* sumStrOneData; 
   
-  for (unsigned long int i = 0; i < numData; i++) {
-      reduceStrData[i] = (rand() % 100000) + 1;
-  }
-
-   
-  int* reduceStrDataDev;
-  int* sumStrDataDev; 
-  
-  //allocate memory on the GPU device
-  status = cudaMalloc( (void **)(&reduceStrDataDev), reduceGPUDataSize);
-  // checks for cuda errors  
-  checkCudaErrors( status, " cudaMalloc( (void **)(&reduceStrDataDev), reduceGPUDataSize) ");
  
-  //allocate memory on the GPU device
-  status = cudaMalloc( (void **)(&sumStrDataDev), sumGPUDataSize);
-  // checks for cuda errors  
-  checkCudaErrors( status, " cudaMalloc( (void **)(&sumStrDataDev), sumGPUDataSize); ");  
-
-
-
+    
+  // pinned data
   
-
-  // Record the start event
-  cudaEventRecord(start, 0); 
-
+  cudaMallocHost((void**)&reduceStrOneData, reduceDataSize);
+  cudaMallocHost((void**)&sumStrOneData, sumDataSize);
   
-  NUMBLOCKS = (streamSizeResult + BLOCKSIZE-1)/BLOCKSIZE;
-  grid.x = NUMBLOCKS;
-  for (int i = 0; i < nStreams; ++i) { 
-    unsigned long int offset = i * streamSize; 
-    unsigned long int offsetResult = i * streamSizeResult;
-    if (i >= nStreamsFitGPU) {
-      cudaStreamSynchronize(stream[i-nStreamsFitGPU]); 
-    }  
-    cudaMemcpyAsync(&reduceStrDataDev[offset % numGPUData], &reduceStrData[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);  
-    reductionSum<<<grid, threads, 0, stream[i]>>>( reduceStrDataDev, sumStrDataDev, streamSizeResult, nCols, offsetResult % sumGPUNumData);
-    cudaMemcpyAsync(&sumStrData[offsetResult ], &sumStrDataDev[offsetResult % sumGPUNumData ], streamBytesResult, cudaMemcpyDeviceToHost, stream[i]);
+    
+  //memset(reduceData, 1, reduceDataSize); 
+  
+  for (unsigned int i = 0; i < numData; i++) {
+       reduceStrOneData[i] = 1;
   }
-  
-  
-  // Record the stop event
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop); 
-  
-  // Calculate elapsed time
-  float GpuTime; 
-  cudaEventElapsedTime(&GpuTime, start, stop); 
-  
-  printf("Time for asynchronous V1 transfer and execute (ms): %f milliseconds\n", GpuTime);
-  //printf(" summation values: %i \n", sumStrData[0]); 
- 
-   
-  unsigned long int sum = 0;
-  for (unsigned long int i = 0;  i < sumNumData; i++) {
-      sum = 0;
-      for (unsigned long int j = 0; j < nCols; j++) {
-          sum+=reduceStrData[IDX2C(i,j,nCols)];
-      }
-      if (sum != sumStrData[i]) {
-         printf(" The value that is wrong is: %lu, %i\n",i, sumStrData[i]);
-	 break;
-      }
-  }
-  
-  cudaFree( sumStrDataDev );
-  cudaFree( reduceStrDataDev );
-   
-  delete[] sumStrData;
-  delete[] reduceStrData;
+  */
    
   
   // cudaMallocHost could not allocate more than 16GB on physical memory
@@ -262,23 +218,49 @@ main( int argc, char* argv[ ] )
   cudaEventRecord(start, 0); 
 
     
-  for (int i = 0; i < nStreams; i+= nStreamsFitGPU) {     
+  
+    
+  for (int i = 0; i < nStreams; i+= nStreamsFitGPU) { 
     for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
       unsigned long int offset = k * streamSize;
-      cudaMemcpyAsync(&reduceStrOneDataDev[offset % numGPUData], &reduceStrOneData[offset], streamBytes, cudaMemcpyHostToDevice, stream[j]);   
+    
+    
+      cudaMemcpyAsync(&reduceStrOneDataDev[offset % numGPUData], &reduceStrOneData[offset], streamBytes, cudaMemcpyHostToDevice, stream[j]);  
+    
+     
+      //cudaMemcpyAsync(&reduceStrDataDev[offset % numGPUData], &reduceStrData[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);  
     }
-    for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
-      unsigned long int offsetResult = k * streamSizeResult;
-      reductionSum<<<grid, threads, 0, stream[j]>>>( reduceStrOneDataDev, sumStrOneDataDev, streamSizeResult, nCols, offsetResult % sumGPUNumData);
-    }
-    for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
-      unsigned long int offsetResult = k * streamSizeResult;
-      cudaMemcpyAsync(&sumStrOneData[offsetResult], &sumStrOneDataDev[offsetResult % sumGPUNumData ], streamBytesResult, cudaMemcpyDeviceToHost, stream[j]);
-    }
-  }
   
    
+
+    for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
+      unsigned long int offsetResult = k * streamSizeResult;
+    
+
+   
+   
+      reductionSum<<<grid, threads, 0, stream[j]>>>( reduceStrOneDataDev, sumStrOneDataDev, streamSizeResult, nCols, offsetResult % sumGPUNumData);
+  
+     
+      //reductionSum<<<grid, threads, 0, stream[i]>>>( reduceStrDataDev, sumStrDataDev, streamSizeResult, nCols, offsetResult % sumGPUNumData);
+    }
+  
+
+    
+
+    for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
+      unsigned long int offsetResult = k * streamSizeResult;
+    
+
+      cudaMemcpyAsync(&sumStrOneData[offsetResult], &sumStrOneDataDev[offsetResult % sumGPUNumData ], streamBytesResult, cudaMemcpyDeviceToHost, stream[j]);
+ 
+    
+    //cudaMemcpyAsync(&sumStrData[offsetResult ], &sumStrDataDev[offsetResult % sumGPUNumData ], streamBytesResult, cudaMemcpyDeviceToHost, stream[i]);
+    }
+  }
+    
   // Record the stop event
+  float GpuTime;
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop); 
   
@@ -289,7 +271,7 @@ main( int argc, char* argv[ ] )
   printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime);
   printf(" summation values: %i \n", sumStrOneData[0]); 
  
-   
+  unsigned long int sum;
   for (unsigned long int i = 0;  i < sumNumData; i++) {
       sum = 0;
       for (unsigned long int j = 0; j < nCols; j++) {
@@ -316,6 +298,14 @@ main( int argc, char* argv[ ] )
   
    
  
+  /*
+  for (int i = 0; i < sumNumData; i++) {
+      if (sumStrOneData[i] - 6 != 0) {
+         printf(" The value that is wrong is: %i, %i\n",i, sumStrOneData[i]);
+	 break; 
+      }  
+  }
+  */
   
  cudaFree( sumStrOneDataDev );
  cudaFree( reduceStrOneDataDev );
@@ -327,6 +317,12 @@ main( int argc, char* argv[ ] )
   
   delete[] sumStrOneData;
   delete[] reduceStrOneData;
+  //cudaFreeHost( sumStrOneData );
+ //cudaFreeHost( reduceStrOneData );
+
+ 
+
   
+
   return 0;
 };	
