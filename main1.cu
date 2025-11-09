@@ -116,8 +116,32 @@ main( int argc, char* argv[ ] )
   // checks for cuda errors  
   checkCudaErrors( status, " cudaMalloc( (void **)(&sumDataDev), sumDataSize); ");  
 
+  
+  
+  float GpuTime = 0;
+ 
+  
+  // Record the start event
+  cudaEventRecord(start, 0); 
+
+  // copy data from host memory to the device:
+
+  status = cudaMemcpy(reduceDataDev, reduceData, reduceDataSize, cudaMemcpyHostToDevice );
+  // checks for cuda errors
+  checkCudaErrors( status,"cudaMemcpy(reduceDataDev, reduceData, reduceDataSize, cudaMemcpyHostToDevice );");  
+  
+  
+  // Record the stop event
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop); 
+  
+  // Calculate elapsed time
+  cudaEventElapsedTime(&GpuTime, start, stop); 
+  
    
-   
+  printf("Time for memory copy from host to device for the sequential execution: %f milliseconds\n", GpuTime);
+
+
   int BLOCKSIZE;
   int NUMBLOCKS;
   int MINGRIDSIZE;  
@@ -136,38 +160,37 @@ main( int argc, char* argv[ ] )
   // allocate number of blocks
   dim3 grid(NUMBLOCKS, 1, 1 );
   
-  
-  
-  
+     
   // Record the start event
   cudaEventRecord(start, 0); 
+      
+  reductionSum<<< grid, threads >>>( reduceDataDev, sumDataDev, sumNumData, nCols, 0);
 
-  // copy data from host memory to the device:
-  status = cudaMemcpy(reduceDataDev, reduceData, reduceDataSize, cudaMemcpyHostToDevice );
-  // checks for cuda errors
-  checkCudaErrors( status,"cudaMemcpy(reduceDataDev, reduceData, reduceDataSize, cudaMemcpyHostToDevice );");  
- 
-  // kernel launch 
-  reductionSumDefaultStream<<< grid, threads >>>( reduceDataDev, sumDataDev, sumNumData, nCols);
-  status = cudaGetLastError(); 
-  // check for cuda errors
-  checkCudaErrors( status," reductionSum<<< grid, threads >>>( reduceDataDev, sumDataDev, numData, sumNumData); ");
-
-  // copy data from device memory to host 
-  status = cudaMemcpy(sumData, sumDataDev, sumDataSize, cudaMemcpyDeviceToHost);  
-  // checks for cuda errors
-  checkCudaErrors( status, " cudaMemcpy(sumData, sumDataDev,  sumDataSize , cudaMemcpyDeviceToHost);"); 
   
   // Record the stop event
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop); 
   
   // Calculate elapsed time
-  float GpuTime = 0;
   cudaEventElapsedTime(&GpuTime, start, stop); 
   
-  printf("Time for sequential transfer and execute: %f milliseconds\n", GpuTime);
+  printf("Time for reductionSum kernel execution for the sequential execution: %f milliseconds\n", GpuTime);
 
+  
+  status = cudaDeviceSynchronize( );
+   
+  checkCudaErrors( status," reductionSum<<< grid, threads >>>( reduceDataDev, sumDataDev, numData, sumNumData); ");
+ 
+  status = cudaGetLastError(); 
+  
+  checkCudaErrors( status,"cudaGetLastError()");   
+
+
+   // copy data from device memory to host 
+  cudaMemcpy(sumData, sumDataDev, sumDataSize, cudaMemcpyDeviceToHost);  
+  // checks for cuda errors
+  checkCudaErrors( status, " cudaMemcpy(sumData, sumDataDev,  sumDataSize , cudaMemcpyDeviceToHost);"); 
+  
   printf(" summation values: %i \n", sumData[0]); 
   
 
@@ -242,30 +265,48 @@ main( int argc, char* argv[ ] )
 
   
 
-  // Record the start event
-  cudaEventRecord(start, 0); 
 
   
   NUMBLOCKS = (streamSizeResult + BLOCKSIZE-1)/BLOCKSIZE;
   grid.x = NUMBLOCKS;
   for (int i = 0; i < nStreams; ++i) { 
     unsigned long int offset = i * streamSize; 
-    int offsetResult = i * streamSizeResult;
+    int offsetResult = i * streamSizeResult; 
+
+
+    // Record the start event
+    cudaEventRecord(start, 0); 
+
     cudaMemcpyAsync(&reduceStrDataDev[offset], &reduceStrData[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);  
+    
+        
+    // Record the stop event
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop); 
+  
+    // Calculate elapsed time
+    cudaEventElapsedTime(&GpuTime, start, stop); 
+   
+    printf("Time for Asynchronous memory copy from host to device: %f milliseconds\n", GpuTime);
+    
+    
+    // Record the start event
+    cudaEventRecord(start, 0); 
     reductionSum<<<grid, threads, 0, stream[i]>>>( reduceStrDataDev, sumStrDataDev, streamSizeResult, nCols, offsetResult);
+    
+    // Record the stop event
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop); 
+  
+    // Calculate elapsed time
+  
+    cudaEventElapsedTime(&GpuTime, start, stop); 
+  
+    printf("Time for the reductionSum kernel excution (ms): %f milliseconds\n", GpuTime);
     cudaMemcpyAsync(&sumStrData[offsetResult], &sumStrDataDev[offsetResult], streamBytesResult, cudaMemcpyDeviceToHost, stream[i]);
   }
   
   
-  // Record the stop event
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop); 
-  
-  // Calculate elapsed time
-  
-  cudaEventElapsedTime(&GpuTime, start, stop); 
-  
-  printf("Time for asynchronous V1 transfer and execute (ms): %f milliseconds\n", GpuTime);
   printf(" summation values: %i \n", sumStrData[0]); 
  
   for (unsigned long int i = 0; i < sumNumData; i++) {
@@ -281,91 +322,10 @@ main( int argc, char* argv[ ] )
    
   cudaFreeHost( sumStrData );
   cudaFreeHost( reduceStrData );
-
-
-  // second asynchronous  transfer 
-  int* reduceStrOneData;
-  int* sumStrOneData; 
-  
-  
-  // pinned data
-  
-  cudaMallocHost((void**)&reduceStrOneData, reduceDataSize);
-  cudaMallocHost((void**)&sumStrOneData, sumDataSize);
-
-    
-  //memset(reduceData, 1, reduceDataSize); 
-  
-  for (unsigned int i = 0; i < numData; i++) {
-       reduceStrOneData[i] = 1;
-  } 
-
-    
-  int* reduceStrOneDataDev;
-  int* sumStrOneDataDev; 
-  
-  //allocate memory on the GPU device
-  status = cudaMalloc( (void **)(&reduceStrOneDataDev), reduceDataSize);
-  // checks for cuda errors  
-  checkCudaErrors( status, " cudaMalloc( (void **)(&reduceStrDataDev), reduceDataSize) ");
  
-  //allocate memory on the GPU device
-  status = cudaMalloc( (void **)(&sumStrOneDataDev), sumDataSize);
-  // checks for cuda errors  
-  checkCudaErrors( status, " cudaMalloc( (void **)(&sumStrDataDev), sumDataSize); ");  
- 
-
-  // Record the start event
-  cudaEventRecord(start, 0); 
-
-    
-  for (int i = 0; i < nStreams; ++i) { 
-    unsigned long int offset = i * streamSize;
-    cudaMemcpyAsync(&reduceStrOneDataDev[offset], &reduceStrOneData[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);  
-  }
-  
-
-   
-  for (int i = 0; i < nStreams; ++i) { 
-    int offsetResult = i * streamSizeResult;
-    reductionSum<<<grid, threads, 0, stream[i]>>>( reduceStrOneDataDev, sumStrOneDataDev, streamSizeResult, nCols, offsetResult);
-  }
-  
-
-  
-  for (int i = 0; i < nStreams; ++i) { 
-    int offsetResult = i * streamSizeResult;
-    cudaMemcpyAsync(&sumStrOneData[offsetResult], &sumStrOneDataDev[offsetResult], streamBytesResult, cudaMemcpyDeviceToHost, stream[i]);
-  }
-  
-    
-  // Record the stop event
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop); 
-  
-  // Calculate elapsed time
-  
-  cudaEventElapsedTime(&GpuTime, start, stop); 
-  
-  printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime);
-  printf(" summation values: %i \n", sumStrOneData[0]); 
- 
-  for (unsigned long int i = 0; i < sumNumData; i++) {
-      if (sumStrOneData[i] - 6 != 0) {
-         printf(" The value that is wrong is: %lu, %i\n",i, sumStrOneData[i]);
-	 break; 
-      }  
-  }
-  
-  
-  cudaFree( sumStrOneDataDev );
-  cudaFree( reduceStrOneDataDev );
-    
   for (int i = 0; i < nStreams; ++i) {
      cudaStreamDestroy(stream[i]) ;
   }
-  cudaFreeHost( sumStrOneData );
-  cudaFreeHost( reduceStrOneData );
   
   return 0;
 };	

@@ -20,6 +20,19 @@ __global__  void reductionSum(int* reduceData, int* sumData, unsigned long int n
 }
 
 
+__global__  void reductionSumDefaultStream(int* reduceData, int* sumData, unsigned long int numData, unsigned int nCols) {
+
+   int gid = (blockIdx.x *  blockDim.x +  threadIdx.x);
+   size_t shift = (size_t)gid *  (size_t) nCols;
+   if (gid < numData) {
+      int sum = 0;
+      for (size_t i = 0; i < nCols; i++) {
+          sum += reduceData[shift + i];
+      }
+      sumData[gid] = sum;
+   }
+}
+
 
 
 
