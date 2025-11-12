@@ -190,9 +190,6 @@ main( int argc, char* argv[ ] )
   for (int i = 0; i < nStreams; ++i) { 
     unsigned long int offset = i * streamSize; 
     unsigned long int offsetResult = i * streamSizeResult;
-    if (i >= nStreamsFitGPU) {
-      cudaStreamSynchronize(stream[i-nStreamsFitGPU]); 
-    }  
     cudaMemcpyAsync(&reduceStrDataDev[offset % numGPUData], &reduceStrData[offset], streamBytes, cudaMemcpyHostToDevice, stream[i]);  
     reductionSum<<<grid, threads, 0, stream[i]>>>( reduceStrDataDev, sumStrDataDev, streamSizeResult, nCols, offsetResult % sumGPUNumData);
     cudaMemcpyAsync(&sumStrData[offsetResult ], &sumStrDataDev[offsetResult % sumGPUNumData ], streamBytesResult, cudaMemcpyDeviceToHost, stream[i]);
@@ -230,13 +227,10 @@ main( int argc, char* argv[ ] )
   delete[] reduceStrData;
    
   
-  // cudaMallocHost could not allocate more than 16GB on physical memory
+  // cudaMallocHost could not allocate/pin more than 16GB on physical memory
   int* reduceStrOneData = new int [numData];
   int* sumStrOneData  = new int [sumNumData]; 
-
-
-  //memset(reduceData, 1, reduceDataSize); 
-  
+ 
   
   for (unsigned long int i = 0; i < numData; i++) {
       reduceStrOneData[i] = (rand() % 100000) + 1;
@@ -262,6 +256,7 @@ main( int argc, char* argv[ ] )
   cudaEventRecord(start, 0); 
 
     
+  
   for (int i = 0; i < nStreams; i+= nStreamsFitGPU) {     
     for (int j = 0, k = i; k < nStreams && j < nStreamsFitGPU; ++j, k++ ) { 
       unsigned long int offset = k * streamSize;
@@ -287,7 +282,6 @@ main( int argc, char* argv[ ] )
   cudaEventElapsedTime(&GpuTime, start, stop); 
   
   printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime);
-  printf(" summation values: %i \n", sumStrOneData[0]); 
  
    
   for (unsigned long int i = 0;  i < sumNumData; i++) {
@@ -296,26 +290,12 @@ main( int argc, char* argv[ ] )
           sum+=reduceStrOneData[IDX2C(i,j,nCols)];
       }
       if (sum != sumStrOneData[i]) {
-	 printf("The value of sum :%lu \n", sum);
-         printf("The value of :%i\n", reduceStrOneData[IDX2C(i,0,nCols)]);
-
-         printf("The value of :%i\n", reduceStrOneData[IDX2C(i,1,nCols)]);
-         
-	 
-         printf("The value of :%i \n", reduceStrOneData[IDX2C(i,2,nCols)]);
-	 
-         printf("The value of :%i \n", reduceStrOneData[IDX2C(i,3,nCols)]);
-
-         printf("The value of :%i \n", reduceStrOneData[IDX2C(i,4,nCols)]);
-
-         printf("The value of :%i \n", reduceStrOneData[IDX2C(i,5,nCols)]);
-	 printf(" The value that is wrong is: %lu, %i\n",i, sumStrOneData[i]);
+         printf(" The value that is wrong is: %lu, %i\n",i, sumStrOneData[i]);
 	 break;
       }
+
   }
-  
    
- 
   
  cudaFree( sumStrOneDataDev );
  cudaFree( reduceStrOneDataDev );

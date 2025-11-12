@@ -89,7 +89,7 @@ main( int argc, char* argv[ ] )
   //memset(reduceData, 1, reduceDataSize); 
   
   for (unsigned int i = 0; i < numData; i++) {
-       reduceData[i] = 1;
+       reduceData[i] = (rand() % 100000) + 1;
   } 
 
  
@@ -166,13 +166,15 @@ main( int argc, char* argv[ ] )
   float GpuTime = 0;
   cudaEventElapsedTime(&GpuTime, start, stop); 
   
-  printf("Time for sequential transfer and execute: %f milliseconds\n", GpuTime);
-
-  printf(" summation values: %i \n", sumData[0]); 
+  printf("Time for sequential transfer and execute: %f milliseconds\n", GpuTime); 
   
-
+  unsigned long int sum = 0;
   for (unsigned long int i = 0; i < sumNumData; i++) {
-      if (sumData[i] - 6 != 0) {
+      sum = 0;
+      for (unsigned long int j = 0; j < nCols; j++) {
+          sum+=reduceData[IDX2C(i,j,nCols)];
+      }
+      if (sum != sumData[i]) {
          printf(" The value that is wrong is: %lu, %i\n",i, sumData[i]);
 	 break; 
       }  
@@ -189,7 +191,7 @@ main( int argc, char* argv[ ] )
 
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, devId);
-  printf("Device : %s\n", prop.name);
+  //printf("Device : %s\n", prop.name);
   cudaSetDevice(devId); 
 
 
@@ -221,7 +223,7 @@ main( int argc, char* argv[ ] )
   //memset(reduceData, 1, reduceDataSize); 
   
   for (unsigned int i = 0; i < numData; i++) {
-       reduceStrData[i] = 1;
+      reduceStrData[i] = (rand() % 100000) + 1;
   } 
 
     
@@ -266,14 +268,20 @@ main( int argc, char* argv[ ] )
   cudaEventElapsedTime(&GpuTime, start, stop); 
   
   printf("Time for asynchronous V1 transfer and execute (ms): %f milliseconds\n", GpuTime);
-  printf(" summation values: %i \n", sumStrData[0]); 
  
-  for (unsigned long int i = 0; i < sumNumData; i++) {
-      if (sumStrData[i] - 6 != 0) {
+  
+  
+  for (unsigned long int i = 0;  i < sumNumData; i++) {
+      sum = 0;
+      for (unsigned long int j = 0; j < nCols; j++) {
+          sum+=reduceStrData[IDX2C(i,j,nCols)];
+      }
+      if (sum != sumStrData[i]) {
          printf(" The value that is wrong is: %lu, %i\n",i, sumStrData[i]);
-	 break; 
-      }  
-  }
+	 break;
+      }
+  } 
+  
   
   
   cudaFree( sumStrDataDev );
@@ -293,13 +301,11 @@ main( int argc, char* argv[ ] )
   cudaMallocHost((void**)&reduceStrOneData, reduceDataSize);
   cudaMallocHost((void**)&sumStrOneData, sumDataSize);
 
-    
-  //memset(reduceData, 1, reduceDataSize); 
+   
+  for (unsigned long int i = 0; i < numData; i++) {
+      reduceStrOneData[i] = (rand() % 100000) + 1;
+  }
   
-  for (unsigned int i = 0; i < numData; i++) {
-       reduceStrOneData[i] = 1;
-  } 
-
     
   int* reduceStrOneDataDev;
   int* sumStrOneDataDev; 
@@ -347,17 +353,22 @@ main( int argc, char* argv[ ] )
   
   cudaEventElapsedTime(&GpuTime, start, stop); 
   
-  printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime);
-  printf(" summation values: %i \n", sumStrOneData[0]); 
- 
-  for (unsigned long int i = 0; i < sumNumData; i++) {
-      if (sumStrOneData[i] - 6 != 0) {
+  printf("Time for asynchronous V2 transfer and execute (ms): %f milliseconds\n", GpuTime); 
+
+  for (unsigned long int i = 0;  i < sumNumData; i++) {
+      sum = 0;
+      for (unsigned long int j = 0; j < nCols; j++) {
+          sum+=reduceStrOneData[IDX2C(i,j,nCols)];
+      }
+      if (sum != sumStrOneData[i]) {
          printf(" The value that is wrong is: %lu, %i\n",i, sumStrOneData[i]);
-	 break; 
-      }  
+	 break;
+      }
+
   }
-  
-  
+   
+
+
   cudaFree( sumStrOneDataDev );
   cudaFree( reduceStrOneDataDev );
     
