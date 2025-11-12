@@ -178,15 +178,15 @@ main( int argc, char* argv[ ] )
   checkCudaErrors( status, " cudaMalloc( (void **)(&sumStrDataDev), sumGPUDataSize); ");  
 
 
-
+  
+  NUMBLOCKS = (streamSizeResult + BLOCKSIZE-1)/BLOCKSIZE;
+  grid.x = NUMBLOCKS;
   
 
   // Record the start event
   cudaEventRecord(start, 0); 
 
   
-  NUMBLOCKS = (streamSizeResult + BLOCKSIZE-1)/BLOCKSIZE;
-  grid.x = NUMBLOCKS;
   for (int i = 0; i < nStreams; ++i) { 
     unsigned long int offset = i * streamSize; 
     unsigned long int offsetResult = i * streamSizeResult;
