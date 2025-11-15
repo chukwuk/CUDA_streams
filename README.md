@@ -4,7 +4,7 @@
 CUDA Stream application for CUDA kernel implementation for the summation of 2D array along the rows.
 
 # Compile code
-This is used for compilation of code for both case in which the data either fit OR not fit into GPU memory.
+This is used for the compilation of code for two cases. The first case involves data that both fit in the CPU (host) and GPU (device) memory and it is located in the root directory. The second case involves data that fit in the host memory but does not fit in the device memory and it is located in this directory (./Data_cannot_fit_in_GPU_memory).
 ```
 $ make
 ```
