@@ -80,6 +80,15 @@ main( int argc, char* argv[ ] )
   unsigned long int sumDataSize = (sizeof(int) * sumNumData) ;
   fprintf (stderr, "Amount of sumData data transfered to the device is %lu GB\n", sumDataSize/1000000000);
   
+  
+  int devId = 0;
+  
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, devId);
+  printf("Number of copy engine for %s is: %i\n", prop.name, prop.asyncEngineCount);
+  cudaSetDevice(devId); 
+
+  
   // pinned data
   
   cudaMallocHost((void**)&reduceData, reduceDataSize);
@@ -117,7 +126,7 @@ main( int argc, char* argv[ ] )
   checkCudaErrors( status, " cudaMalloc( (void **)(&sumDataDev), sumDataSize); ");  
 
    
-   
+     
   int BLOCKSIZE;
   int NUMBLOCKS;
   int MINGRIDSIZE;  
@@ -186,13 +195,7 @@ main( int argc, char* argv[ ] )
   cudaFreeHost( sumData );
   cudaFreeHost( reduceData );
 
-  int devId = 0;
-  if (argc > 1) devId = atoi(argv[1]);
 
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, devId);
-  //printf("Device : %s\n", prop.name);
-  cudaSetDevice(devId); 
 
 
    

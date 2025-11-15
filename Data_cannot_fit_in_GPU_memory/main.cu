@@ -100,6 +100,14 @@ main( int argc, char* argv[ ] )
   fprintf (stderr, "Amount of sumData data transfered to the device is %lu GB\n", sumGPUDataSize/1000000000);
 
   
+  int devId = 0;
+  
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, devId);
+  printf("Number of copy engine for %s is: %i\n", prop.name, prop.asyncEngineCount);
+  cudaSetDevice(devId); 
+  
+  
   // Create CUDA events
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -124,17 +132,6 @@ main( int argc, char* argv[ ] )
   // allocate number of blocks
   dim3 grid(NUMBLOCKS, 1, 1 );
   
-   
-       
-
-  int devId = 0;
-  if (argc > 1) devId = atoi(argv[1]);
-
-  cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, devId);
-  printf("Device : %s\n", prop.name);
-  cudaSetDevice(devId); 
-
 
    
   unsigned long int nStreams = 6;
