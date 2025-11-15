@@ -1,5 +1,16 @@
-___
+# CUDA Streams.
 
-# CUDA Streams
-___
-**Testing CUDA streams on my RTX 5070 Ti NVIDIA GPU**
+# Introduction.
+CUDA Stream application for CUDA kernel implementation for the summation of 2D array along the rows.
+
+# Compile code
+```
+$ make
+```
+# Run code
+```
+$ ./main
+```
+# References
+
+
